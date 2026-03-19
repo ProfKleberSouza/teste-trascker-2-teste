@@ -1,0 +1,51 @@
+name: Contribution Tracker
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'codigo-fonte/**'
+      - 'documentos/**'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  track-contributions:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.repository, 'Template') }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests PyGithub matplotlib pandas tabulate
+
+      - name: Generate contribution report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python .github/scripts/generate_contribution_report.py
+
+      - name: Commit and push report
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add documentos/CONTRIBUTION_REPORT.md documentos/img/contribution-*.png || true
+          git diff --staged --quiet || git commit -m "📊 Atualizar relatório de contribuições [skip ci]"
+          git push || true
